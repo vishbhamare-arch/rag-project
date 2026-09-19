@@ -144,28 +144,33 @@ for message in st.session_state.messages:
 
 # Accept user input
 if prompt := st.chat_input("What's up?"):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    if not st.session_state.file_cache:
+        st.error("Please upload a PDF first!")
+    else:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    # Display assistant response in chat message container
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        
-        # Simulate stream of response with milliseconds delay
-        streaming_response = query_engine.query(prompt)
-        
-        for chunk in streaming_response.response_gen:
-            full_response += chunk
-            message_placeholder.markdown(full_response + "▌")
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
 
-        # full_response = query_engine.query(prompt)
+            # Get the cached query engine from the first uploaded file
+            query_engine = next(iter(st.session_state.file_cache.values()))
+            # Simulate stream of response with milliseconds delay
+            streaming_response = query_engine.query(prompt)
 
-        message_placeholder.markdown(full_response)
-        # st.session_state.context = ctx
+            for chunk in streaming_response.response_gen:
+                full_response += chunk
+                message_placeholder.markdown(full_response + "▌")
 
-    # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+            # full_response = query_engine.query(prompt)
+
+            message_placeholder.markdown(full_response)
+            # st.session_state.context = ctx
+
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
