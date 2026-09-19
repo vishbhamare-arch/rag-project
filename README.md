@@ -10,6 +10,7 @@ Conversational AI application that answers questions about PDF documents using R
 - **Session Persistence** — Chat history maintained within a session, PDFs cached to avoid re-indexing
 - **Smart Retrieval** — Uses HuggingFace embeddings (BAAI/bge-large-en-v1.5) for semantic search
 - **Conversational Interface** — Clean web UI built with Streamlit
+- **Token Usage Tracking** — Real-time token metrics for embeddings, prompts, and responses (see [TOKEN_TRACKING.md](TOKEN_TRACKING.md))
 
 ## Quick Start
 
@@ -156,6 +157,34 @@ pip install streamlit
 - **PDF indexing:** 1-5 minutes depending on file size
 - **Query response:** 3-10 seconds (LLM generation time)
 - **Embedding generation:** Main bottleneck (GPU acceleration not configured)
+
+## Testing
+
+### Run Tests
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest tests/ -v
+
+# Run specific test suite
+pytest tests/test_token_counter.py -v
+pytest tests/test_token_tracker.py -v
+pytest tests/test_integration.py -v
+
+# Run with coverage report
+pytest tests/ --cov=. --cov-report=html
+```
+
+**Test Coverage:**
+- 60 total tests
+- 19 unit tests for token counting
+- 28 unit tests for token aggregation
+- 13 integration tests for workflows
+- All tests passing ✓
+
+For detailed token tracking feature documentation, see [TOKEN_TRACKING.md](TOKEN_TRACKING.md).
 
 ## Limitations
 
