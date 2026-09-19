@@ -19,9 +19,14 @@ from llama_index.core import VectorStoreIndex, ServiceContext, SimpleDirectoryRe
 
 import streamlit as st
 
+from token_counter import TokenCounter
+from token_tracker import TokenTracker
+
 if "id" not in st.session_state:
     st.session_state.id = uuid.uuid4()
     st.session_state.file_cache = {}
+    st.session_state.token_tracker = TokenTracker()
+    st.session_state.token_counter = TokenCounter()
 
 session_id = st.session_state.id
 client = None
@@ -36,6 +41,7 @@ def load_llm():
 def reset_chat():
     st.session_state.messages = []
     st.session_state.context = None
+    st.session_state.token_tracker.reset()
     gc.collect()
 
 
@@ -56,8 +62,8 @@ def display_pdf(file):
 
 
 with st.sidebar:
-    st.header(f"Add your documents!")
-    
+    st.header("📄 Add your documents!")
+
     uploaded_file = st.file_uploader("Choose your `.pdf` file", type="pdf")
 
     if uploaded_file:
@@ -84,6 +90,17 @@ with st.sidebar:
                         st.stop()
                     
                     docs = loader.load_data()
+
+                    # Count embedding tokens
+                    doc_texts = [doc.get_content() for doc in docs]
+                    embedding_tokens = st.session_state.token_counter.estimate_embedding_tokens(
+                        len(docs),
+                        st.session_state.token_counter.get_avg_tokens_per_doc(doc_texts)
+                    )
+                    st.session_state.token_tracker.add_embedding_tokens(
+                        int(embedding_tokens),
+                        uploaded_file.name
+                    )
 
                     # setup llm & embedding model
                     llm=load_llm()
@@ -121,7 +138,28 @@ with st.sidebar:
                 display_pdf(uploaded_file)
         except Exception as e:
             st.error(f"An error occurred: {e}")
-            st.stop()     
+            st.stop()
+
+    # Display token usage metrics in sidebar
+    st.divider()
+    st.subheader("📊 Token Usage")
+    summary = st.session_state.token_tracker.get_summary()
+
+    col1_metric, col2_metric = st.columns(2)
+    with col1_metric:
+        st.metric("Total Tokens", summary['total_tokens'])
+        st.metric("Embedding Tokens", summary['embedding_tokens'])
+    with col2_metric:
+        st.metric("Prompt Tokens", summary['prompt_tokens'])
+        st.metric("Response Tokens", summary['response_tokens'])
+
+    st.metric("Messages", summary['message_count'])
+
+    if st.session_state.messages:
+        with st.expander("📈 Token Breakdown"):
+            breakdown = st.session_state.token_tracker.get_per_message_summary()
+            for i, item in enumerate(breakdown):
+                st.write(f"{item['role'].capitalize()}: {item['tokens']} tokens")
 
 col1, col2 = st.columns([6, 1])
 
@@ -147,6 +185,10 @@ if prompt := st.chat_input("What's up?"):
     if not st.session_state.file_cache:
         st.error("Please upload a PDF first!")
     else:
+        # Count prompt tokens
+        prompt_tokens = st.session_state.token_counter.count_tokens(prompt)
+        st.session_state.token_tracker.add_prompt_tokens(prompt_tokens, prompt)
+
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         # Display user message in chat message container
@@ -166,6 +208,17 @@ if prompt := st.chat_input("What's up?"):
             for chunk in streaming_response.response_gen:
                 full_response += chunk
                 message_placeholder.markdown(full_response + "▌")
+
+            # Count response tokens
+            response_tokens = st.session_state.token_counter.count_tokens(full_response)
+            st.session_state.token_tracker.add_response_tokens(response_tokens, full_response)
+            st.session_state.token_tracker.add_message_tokens(
+                message_id=str(len(st.session_state.messages)),
+                role="assistant",
+                content=full_response,
+                prompt_tokens=prompt_tokens,
+                response_tokens=response_tokens
+            )
 
             # full_response = query_engine.query(prompt)
 
