@@ -27,6 +27,8 @@ if "id" not in st.session_state:
     st.session_state.file_cache = {}
     st.session_state.token_tracker = TokenTracker()
     st.session_state.token_counter = TokenCounter()
+    st.session_state.messages = []
+    st.session_state.context = None
 
 session_id = st.session_state.id
 client = None
@@ -168,11 +170,6 @@ with col1:
 
 with col2:
     st.button("Clear ↺", on_click=reset_chat)
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    reset_chat()
-
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
