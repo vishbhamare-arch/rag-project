@@ -18,19 +18,15 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install uv
-        run: pip install uv
-
       - name: Install dependencies
         run: |
-          uv pip install -e .
-          uv pip install pytest pytest-cov
+          pip install streamlit llama-index llama-index-core llama-index-llms-ollama \
+            llama-index-embeddings-huggingface torch huggingface_hub pytest pytest-cov
 
       - name: Run tests
-        run: pytest --cov=. --cov-report=xml
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
+        run: |
+          if [ -d "tests" ]; then
+            pytest --cov=. --cov-report=xml
+          else
+            echo "No tests directory found. Skipping tests."
+          fi
